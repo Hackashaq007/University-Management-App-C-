@@ -1,0 +1,12 @@
+
+
+2 courses
+
+		Monday         Tuesday        Wednesday      Thursday       Friday
+		------------------------------------------------------------------
+
+08:00:00	csc300                        csc300
+
+09:30:00			ele300                        ele300
+
+

@@ -1,0 +1,2272 @@
+//time_.h header file
+----------------------
+
+#include <iostream>
+using namespace std;
+
+class time_ {
+	friend istream& operator>>(istream&, time_&);
+	friend ostream& operator<<(ostream&, time_&);
+private:
+	int hours, minutes;
+public:
+	time_(int t = 0) : hours(0), minutes(0) {}
+	//setter function for hours
+	void set_hours(int h) {
+		hours = h;
+	}
+	//setter function for minutes
+	void set_minutes(int m) {
+		minutes = m;
+	}
+	//getter function for hours
+	int get_hours() {
+		return hours;
+	}
+	//getter function for minutes
+	int get_minutes() {
+		return minutes;
+	}
+};
+
+istream& operator>>(istream& in, time_& tm) {
+	do {
+		cout << "Time (H/M) -> ";
+		in >> tm.hours >> tm.minutes;
+		if (cin.fail()) {
+			cin.clear();
+			cin.ignore(INT_MAX, '\n');
+		}
+	} while (tm.hours < 0 || tm.hours > 23 || tm.minutes < 0 || tm.minutes>59 || cin.fail());
+	return in;
+}
+
+ostream& operator<<(ostream& out, time_& tm) {
+	out << (tm.hours < 10 ? "0" : "") << tm.hours << ":";
+	out << (tm.minutes < 10 ? "0" : "") << tm.minutes << ":";
+	out << "00";
+	return out;
+}
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+//date.h header file
+---------------------
+
+#include <iostream>
+using namespace std;
+
+class date {
+	//function to set the number of days per month
+	friend int set_days(int);
+
+	//function to compare 2 dates (newest and oldest)
+	friend int date_comp(date*, date*);
+	friend istream& operator>>(istream&, date&);
+	friend ostream& operator<<(ostream&, const date&);
+private:
+	int day, month, year;
+public:
+	date(int zero = 0) : day(zero), month(zero), year(zero) {}
+};
+
+int set_days(int month) {
+	int days = 0;
+	switch (month) {
+	case 1: case 3: case 5: case 7: case 8: case 10: case 12:
+		days = 31; 
+		break;
+	case 4: case 6: case 11: case 9:
+		days = 30;
+		break;
+	case 2:
+		days = 28;
+		break;
+	}
+	return days;
+}
+
+int date_comp(date* d1, date* d2) {
+	if (d1->year > d2->year)
+		return 1;
+	else
+		if (d1->year < d2->year)
+			return -1;
+		else
+			if (d1->month > d2->month)
+				return 1;
+			else
+				if (d1->month < d2->month)
+					return -1;
+				else
+					if (d1->day > d2->day)
+						return 1;
+					else
+						if (d1->day < d2->day)
+							return -1;
+						else
+							return 0;
+}
+
+istream& operator>>(istream& in, date& d) {
+	int days;
+	cout << "Month(1-12): "; in >> d.month;
+	while (in.fail() || d.month < 1 || d.month >12) {
+		in.clear(); in.ignore(INT_MAX, '\n');
+		cout << "Month(1-12): "; in >> d.month;
+	}
+	days = set_days(d.month);
+	cout << "Day(1-" << days << "): "; in >> d.day;
+	while (in.fail() || d.day < 1 || d.day > days) {
+		in.clear(); in.ignore(INT_MAX, '\n');
+		cout << "Day(1-" << days << "): "; in >> d.day;
+	}
+	cout << "Year(1950-present): "; in >> d.year;
+	while (in.fail() || d.year < 1950 || d.year > 2023) {
+		in.clear(); in.ignore(INT_MAX, '\n');
+		cout << "Year(1950-present): "; in >> d.year;
+	}
+	return in;
+}
+
+ostream& operator<<(ostream& out, const date& d) {
+	out << (d.day < 10 ? "0" : "") << d.day << "/" << (d.month < 10 ? "0" : "") << d.month << "/" << d.year << "\n";
+	return out;
+}
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+//course.h header file
+-----------------------
+
+#include "time_.h"
+#include <iomanip>
+
+class course {
+	//function to set a courses end time depending on number of credits
+	friend void set_end_time(course*);
+
+	//alternate printing mode for course objects (used for testing)
+	friend void alternate_print_course(course*);
+
+	//function udes to check for time comflicts between two courses 
+	friend bool period_comp(course*, course, int, int&);
+
+	//function to compare two course periods (newest and oldest)
+	friend int time_comp(course*, course*);
+
+	//function to compare a course's end and another's starting period
+	friend int end_comp(course*, course*);
+	friend istream& operator>>(istream&, course&);
+	friend ostream& operator<<(ostream&, course&);
+private:
+	char code[7], days[4];
+	time_ period, ends;
+	int credits;
+public:
+	course() { strcpy_s(code, sizeof(code), "N/A"); strcpy_s(days, sizeof(days), "N/A"); credits = 0; }
+	//getter returning course code
+	char* get_code() {
+		return code;
+	}
+	//getter returning course days
+	char* get_days() {
+		return days;
+	}
+	//getter returning the number of credits of a course
+	int get_credits() {
+		return credits;
+	}
+};
+
+istream& operator>>(istream& in, course& crs) {
+	cout << "Course code: ";
+	in >> crs.code;
+	cout << "Course period: ";
+	in >> crs.period;
+	do {
+		cout << "Course days(MW/TTH/F): ";
+		in >> crs.days;
+	} while (strcmp(crs.days, "MW") != 0 && strcmp(crs.days, "TTH") != 0 && strcmp(crs.days, "F"));
+
+	do {
+		cout << "Course credits: ";
+		in >> crs.credits;
+	} while (crs.credits < 1 || crs.credits > 3);
+	return in;
+}
+
+void set_end_time(course* crs) {
+	switch (crs->credits) {
+	case 1:
+		crs->ends.set_hours((crs->period.get_hours() + 3));
+		crs->ends.set_minutes(crs->period.get_minutes());
+		break;
+	case 2: case 3:
+		if (crs->period.get_minutes() < 30) {
+			crs->ends.set_hours((crs->period.get_hours() + 1));
+			crs->ends.set_minutes((crs->period.get_minutes() + 30));
+		}
+		else {
+			crs->ends.set_hours((crs->period.get_hours() + 2));
+			crs->ends.set_minutes((crs->period.get_minutes() - 30));
+		}
+		break;
+	}
+}
+
+ostream& operator<<(ostream& out, course& crs) {
+	out << left << crs.period;
+	if (strcmp(crs.days, "MW") == 0) {
+		out <<"\t" << setw(30) << crs.code << crs.code << endl;
+	}
+	if (strcmp(crs.days, "TTH") == 0) {
+		out << "\t\t\t" << setw(30) << crs.code << crs.code << endl;
+	}
+	if (strcmp(crs.days, "F") == 0) {
+		out << setw(61) <<"\t" << crs.code << endl;
+	}
+	return out;
+}
+
+int time_comp(course* t1, course* t2) {
+	if (t1->period.get_hours() > t2->period.get_hours())
+		return 1;
+	else
+		if (t1->period.get_hours() < t2->period.get_hours())
+			return -1;
+		else
+			if (t1->period.get_minutes() > t2->period.get_minutes())
+				return 1;
+			else
+				if (t1->period.get_minutes() < t2->period.get_minutes())
+					return -1;
+				else
+					return 0;
+}
+
+int end_comp(course* t1, course* t2) {
+	if (t1->period.get_hours() > t2->ends.get_hours())
+		return 1;
+	else
+		if (t1->period.get_hours() < t2->ends.get_hours())
+			return -1;
+		else
+			if (t1->period.get_minutes() > t2->ends.get_minutes())
+				return 1;
+			else
+				if (t1->period.get_minutes() < t2->ends.get_minutes())
+					return -1;
+				else
+					return 0;
+}
+
+bool period_comp(course* courses, course index, int pos, int& acctual) {
+	bool check = false;
+	for (int i = pos - 1; i >= 0; i--) {
+		if ((strcmp(index.days, courses[i].days) == 0) && (time_comp(&(index), &(courses[i])) >= 0) && (end_comp(&(index), &(courses[i])) == -1)) {
+			check = true;
+			acctual = i;
+			break;
+		}
+		if ((strcmp(index.days, courses[i].days) == 0) && (time_comp(&(index), &(courses[i])) <= 0) && (end_comp(&(courses[i]), &(index)) == -1)) {
+			check = true;
+			acctual = i;
+			break;
+		}
+	}
+	return check;
+}
+
+void alternate_print_course(course* crs) {
+	cout << crs->get_code() << " -> " << crs->period << " (" << crs->credits << (crs->credits == 1 ? " credit)" : " credits)") << endl;
+}
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+//schedule.h header file
+-------------------------
+
+//including course.h header file
+#include "course.h"
+#include <windows.h>
+#include <iomanip>
+#include <fstream>
+
+class schedule {
+	//function to read from schedule text file
+	friend bool read_from_file(char[]);
+
+	//function to input a students schdule and record it into a text file
+	friend void text_schedule(schedule, char[]);
+
+	//function to arrange courses by time taken
+	friend void arrange_by_time(schedule*);
+	friend istream& operator>>(istream&, schedule&);
+	friend ostream& operator<<(ostream&, schedule&);
+
+	//alernate print mode for schedule objects (used for testing)
+	friend void alternate_print_schedule(schedule*);
+private:
+	int num_courses;
+	course* courses;
+public:
+	//schedule class constructor
+	schedule() {
+		num_courses = 1;
+		courses = 0;
+	}
+};
+
+//display main menu
+void main_menu();
+void sch_menu();
+
+istream& operator>>(istream& in, schedule& sch) {
+	int acc = -1;
+	int count = 0;
+	course input;
+	cout << "Enter number of courses: ";
+	in >> sch.num_courses;
+	sch.courses = new course[sch.num_courses];
+	cout << "\nRead all courses: " << endl;
+	cout << "---------------------\n" << endl;
+	for (int i = 0; i < sch.num_courses; i++) {
+		cout << "Course " << i + 1 << ": " << endl;
+		in >> input;
+		set_end_time(&input);
+		if (count >= 1) {
+			while (period_comp(sch.courses, input, i, acc)) {
+				cout << "\aTime conflict between this course and the " << sch.courses[acc].get_code() << " course" << endl;
+				cout << "Course " << i + 1 << ": " << endl;
+				in >> input;
+				set_end_time(&input);
+			}
+		}
+		sch.courses[i] = input;
+		++count;
+		cout << "\n";
+	}
+	return in;
+}
+
+ostream& operator<<(ostream& out, schedule& sch) {
+	out << "\n\n";
+	out << sch.num_courses << (sch.num_courses !=1 ? " courses": " course") << endl;
+	out << "\n";
+	out << "\t\t" << left << setw(15) << "Monday" << setw(15) << "Tuesday" << setw(15) << "Wednesday" <<
+		setw(15) << "Thursday" << "Friday\n";
+	out << "\t\t" << left << "------------------------------------------------------------------\n\n";
+	arrange_by_time(&sch);
+	for (int i = 0; i < sch.num_courses; i++) {
+		out << sch.courses[i] << endl;
+	}
+	return out;
+}
+
+void arrange_by_time(schedule* sch) {
+	course temp;
+	for (int i = 0; i < sch->num_courses - 1; i++) {
+		for (int j = 0; j < sch->num_courses - 1; j++) {
+			if (time_comp(&(sch->courses[j]), &(sch->courses[j + 1])) == 1) {
+				temp = sch->courses[j];
+				sch->courses[j] = sch->courses[j + 1];
+				sch->courses[j + 1] = temp;
+			}
+		}
+	}
+}
+
+void alternate_print_schedule(schedule* sch) {
+	arrange_by_time(sch);
+	int countMW = 0, countTTH = 0, countF = 0;
+	for (int i = 0; i < sch->num_courses; i++) {
+		if (strcmp(sch->courses[i].get_days(), "MW") == 0)
+			countMW++;
+		if (strcmp(sch->courses[i].get_days(), "TTH") == 0)
+			countTTH++;
+		if (strcmp(sch->courses[i].get_days(), "F") == 0)
+			countF++;
+	}
+	if (countMW > 0) {
+		cout << "\nMW courses: \n";
+		cout << "--------------\n";
+		int inc1 = 0;
+		for (int i = 0; i < sch->num_courses; i++) {
+			if (strcmp(sch->courses[i].get_days(), "MW") == 0) {
+				cout << "Course " << inc1 + 1 << ": ";
+				alternate_print_course(&(sch->courses[i]));
+				++inc1;
+			}
+		}
+	}
+	else
+		cerr << "\nNo courses registered on mondays and wednesdays" << endl;
+	if (countTTH > 0) {
+		cout << "\nTTH courses: \n";
+		cout << "--------------\n";
+		int inc2 = 0;
+		for (int i = 0; i < sch->num_courses; i++) {
+			if (strcmp(sch->courses[i].get_days(), "TTH") == 0) {
+				cout << "Course " << inc2 + 1 << ": ";
+				alternate_print_course(&(sch->courses[i]));
+				++inc2;
+			}
+		}
+	}
+	else
+		cerr << "\nNo courses registered on tuesdays and thursdays" << endl;
+	if (countF > 0) {
+		cout << "\nF courses: \n";
+		cout << "-------------\n";
+		int inc3 = 0;
+		for (int i = 0; i < sch->num_courses; i++) {
+			if (strcmp(sch->courses[i].get_days(), "F") == 0) {
+				cout << "Course " << inc3 + 1 << ": ";
+				alternate_print_course(&(sch->courses[i]));
+				++inc3;
+			}
+		}
+	}
+	else
+		cerr << "\nNo courses registered on fridays" << endl;
+}
+
+void sch_menu() {
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xD);
+	cout << "Schedule management: " << endl;
+	cout << "-------------------\n";
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xF);
+	cout << "1) Set student schedule" << endl;
+	cout << "2) Set teacher schedule" << endl;
+	cout << "3) Display schedule" << endl;
+	cout << "B) Go back" << endl;
+}
+
+void main_menu() {
+	cout << "1) Manage students" << endl;
+	cout << "2) Manage teachers" << endl;
+	cout << "3) Manage schedules" << endl;
+	cout << "T) ";
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x4);
+	cout << "End execution" << endl;
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xF);
+}
+
+void text_schedule(schedule sch, char name[]) {
+	ofstream file;
+	char file_name[80];
+	strcpy_s(file_name, name);
+	strcat_s(file_name, "'s_schedule.txt");
+	file.open(file_name);
+	file << sch << endl;
+	file.close();
+}
+
+bool read_from_file(char name[]) {
+	char line[200];
+	ifstream file;
+	char file_name[40];
+	strcpy_s(file_name, name);
+	strcat_s(file_name, "'s_schedule.txt");
+	file.open(file_name);
+	if (file.fail()) {
+		return false;
+	}
+	else {
+		file.ignore();
+		file.getline(line, 200);
+		while (!file.eof()) {
+			cout << line << endl;
+			file.getline(line, 200);
+		}
+	}
+	file.close();
+	return true;
+}
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+//member.h header file
+-----------------------
+
+#ifndef _MEMBER_H_
+#define _MEMBER_H_
+
+#include "date.h"
+#include <cstring>
+#include <windows.h>
+#include <iomanip>
+#include <fstream>
+
+//semester structure (season-year)
+struct semester {
+	int year;
+	char season[20];
+};
+
+//function comparing 2 semesters (newest and oldest)
+int semester_comp(semester*, semester*);
+
+class member {
+protected:
+	int id;
+	date birth;
+	semester started;
+	char gender, name[40];
+public:
+	member() {
+		id = 0;
+		gender = 'N';
+		started.year = 2023;
+		strcpy_s(name, "N/A");
+		strcpy_s(started.season, "Fall");
+	}
+	//getter function to return member name
+	char* get_name() {
+		return name;
+	}
+};
+
+int semester_comp(semester* s1, semester* s2) {
+	if (s1->year > s2->year)
+		return 1;
+	else
+		if (s1->year < s2->year)
+			return -1;
+		else
+			if (strcmp(s1->season, s2->season) == -1)
+				return -1;
+			else
+				if (strcmp(s1->season, s2->season) == 1)
+					return 1;
+				else
+					return 0;
+}
+
+#endif _MEMBER_H_
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+//students.h header file
+-------------------------
+
+#ifndef _STUDENTS_H_
+#define _STUDENTS_H_
+
+#include "member.h"
+
+class student : public member {
+	//checks majors for binary file
+	friend void check_major(char[], int&, int&, int&, int&, int&);
+
+	//function to search for a student (by name) in the binary file
+	friend bool search_std_binary(student*, char[]);
+
+	//function to display all students in one major from a binary file
+	friend void display_std_binary_major(student*, char[]);
+
+	//function to enter students in a binary file depending on their major
+	friend void input_std_binary_major(student*, int, char[]);
+
+	//function to display all students present in the binary file
+	friend void display_std_binary(student*);
+
+	//function to update desired information of a student
+	friend void update_std_info(student*, int);
+
+	friend bool searchstd_by_name(student*, int, int&, char[]);
+	friend bool searchstd_by_id(student*, int, int&, int);
+
+	//function that groups students in the same major
+	friend void group_by_major(student*, int);
+
+	//function to group students that started in the same semester
+	friend void group_by_year(student*, int);
+	friend void sort_by_credits(student*, int);
+	friend void sort_by_semester(student*, int);
+	friend istream& operator>>(istream&, student&);
+	friend ostream& operator<<(ostream&, const student&);
+private:
+	int credits;
+	double gpa;
+	char major[20];
+public:
+	student() : member() {
+		credits = 0;
+		gpa = 0;
+		strcpy_s(major, "N/A");
+	}
+	//overloading += operator for student objects to add up student GPAs
+	student& operator+=(const student&);
+	//getter function returning student majors
+	char* get_major() {
+		return major;
+	}
+};
+
+//display file options for students
+void std_file_menu();
+void std_menu();
+
+//function to remove a student directly from the binary file
+void remove_std_binary(student*);
+
+//function counting number of students in the binary file
+int student_file_counter(ifstream&);
+void input_std_binary(student*, int);
+void display_all_stds(student*, int);
+void input_all_stds(student* students, int n);
+void swap_stds(student*, student*);
+void add_std(student*, int, int&);
+void remove_std(student*, int, int&);
+
+student& student::operator+=(const student& st) {
+	gpa += st.gpa;
+	return *this;
+}
+
+istream& operator>>(istream& in, student& st) {
+	cout << "\nStudent information : \n";
+	cout << "--------------------\n\n";
+	cout << "Full name: "; in.ignore(); in.getline(st.name, 40);
+	do {
+		cout << "Student ID: ";
+		in >> st.id;
+	} while (st.id <= 0);
+	do {
+		cout << "Gender(M/F): ";
+		in >> st.gender;
+	} while (st.gender != 'M' && st.gender != 'F');
+	cout << "Date of birth: " << endl;
+	in >> st.birth;
+	cout << "\nAvailable majors (CCE-MCE-CME-BFE-BME)" << endl;
+	cout << "Major: "; in.ignore(); in.getline(st.major, 20);
+	while (strcmp(st.major, "CCE") != 0 && strcmp(st.major, "MCE") != 0 && strcmp(st.major, "BME") != 0
+		&& strcmp(st.major, "BFE") != 0 && strcmp(st.major, "CME") != 0) {
+		cout << "Major: "; in.getline(st.major, 20);
+	}
+	do {
+		cout << "Starting semester: ";
+		in >> st.started.season >> st.started.year;
+	} while (st.started.year < 2000 || st.started.year > 2023);
+	do {
+		cout << "GPA: ";
+		in >> st.gpa;
+	} while (st.gpa < 0.00 || st.gpa> 4.00);
+	do {
+		cout << "Credits completed: ";
+		in >> st.credits;
+	} while (st.credits < 0);
+	return in;
+}
+
+ostream& operator<<(ostream& out, const student& st) {
+	out << st.name << "-" << st.id << " (" << st.major << ")\n";
+	out << "Gender: " << st.gender << endl;
+	out << "Date of birth: " << st.birth << endl;
+	out << "Starting semester: " << st.started.season << " " << st.started.year << endl;
+	out << "Credits completed: " << st.credits << endl;
+	out << "GPA: " << setprecision(2) << fixed << showpoint << st.gpa << endl;
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x4);
+	out << "----------------------------------------------------------\n";
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xF);
+	return out;
+}
+
+void display_all_stds(student* students, int n) {
+	cout << "Displaying all students...\n";
+	cout << "--------------------------\n\n";
+	for (int i = 0; i < n; i++) {
+		cout << students[i] << "\n";
+	}
+	cout << "\n";
+}
+
+void input_all_stds(student* students, int n) {
+	cout << "Input all students...\n";
+	cout << "--------------------------\n";
+	for (int i = 0; i < n; i++) {
+		cin >> students[i];
+	}
+	cout << "\n";
+}
+
+void swap_stds(student* s1, student* s2) {
+	student temp;
+	temp = *s1;
+	*s1 = *s2;
+	*s2 = temp;
+}
+
+void sort_by_credits(student* students, int n) {
+	char choice;
+	do {
+		cout << "Do you want to sort in ascending(a) or descending(d) order? ";
+		cin >> choice;
+	} while (choice != 'a' && choice != 'd');
+	switch (choice) {
+	case 'a':
+		for (int i = 0; i < n - 1; i++) {
+			for (int j = 0; j < n - 1; j++) {
+				if (students[j].credits > students[j + 1].credits)
+					swap_stds(&(students[j]), &(students[j + 1]));
+			}
+		}
+		break;
+	case 'd':
+		for (int i = 0; i < n - 1; i++) {
+			for (int j = 0; j < n - 1; j++) {
+				if (students[j].credits < students[j + 1].credits)
+					swap_stds(&(students[j]), &(students[j + 1]));
+			}
+		}
+		break;
+	}
+}
+
+void sort_by_semester(student* students, int n) {
+	char choice;
+	do {
+		cout << "Do you want to sort in ascending(a) or descending(d) order? ";
+		cin >> choice;
+	} while (choice != 'a' && choice != 'd');
+	switch (choice) {
+	case 'a':
+		for (int i = 0; i < n - 1; i++) {
+			for (int j = 0; j < n - 1; j++) {
+				if (semester_comp(&(students[j].started), &(students[j + 1].started)) == -1)
+					swap_stds(&(students[j]), &(students[j + 1]));
+			}
+		}
+		break;
+	case 'd':
+		for (int i = 0; i < n - 1; i++) {
+			for (int j = 0; j < n - 1; j++) {
+				if (semester_comp(&(students[j].started), &(students[j + 1].started)) == 1)
+					swap_stds(&(students[j]), &(students[j + 1]));
+			}
+		}
+		break;
+	}
+
+}
+
+void group_by_major(student* students, int n) {
+	bool check = false;
+	char search_major[20];
+	cout << "Select major: ";
+	cin >> search_major;
+	cout << "\n\n";
+	for (int i = 0; i < n; i++) {
+		if (strcmp(search_major, students[i].major) == 0) {
+			cout << students[i].name << "-" << students[i].id << endl;
+			check = true;
+		}
+	}
+	if (!check)
+		cerr << "No students found" << endl;
+	else
+		cerr << "\nSuccessfull\n" << endl;
+}
+
+void group_by_year(student* students, int n) {
+	bool check = false;
+	semester search_sem;
+	cout << "Select semester: ";
+	cin >> search_sem.season >> search_sem.year;
+	cout << "\n\n";
+	for (int i = 0; i < n; i++) {
+		if (semester_comp(&(students[i].started), &search_sem) == 0) {
+			cout << students[i].name << "-" << students[i].id << endl;
+			check = true; 
+		}
+	}
+	if (!check)
+		cerr << "No students found" << endl;
+	else
+		cerr << "\nSuccessfull\n" << endl;
+}
+
+void add_std(student* students, int n, int& std_count) {
+	if (n == 1000) {
+		cout << "Can no longer add students\n\n";
+	}
+	else {
+		cin >> students[n];
+		std_count++;
+	}
+}
+
+bool searchstd_by_name(student* students, int n, int& pos, char search[]) {
+	if (n == 0)
+		return false;
+	if (strcmp(search, students[n - 1].name) == 0) {
+		pos = n - 1;
+		return true;
+	}
+	else
+		return searchstd_by_name(students, n - 1, pos, search);
+}
+
+bool searchstd_by_id(student* students, int n, int& pos, int search) {
+	if (n == 0)
+		return false;
+	if (search == students[n-1].id) {
+		pos = n - 1;
+		return true;
+	}
+	else
+		return searchstd_by_id(students, n - 1, pos, search);
+}
+
+void remove_std(student* students, int n, int& std_count) {
+	if (n == 0) {
+		cout << "Can no longer remove students\n\n";
+	}
+	else {
+		int search_id, pos1 = -1, pos2 = -1;
+		char search_name[40];
+		char choice;
+		do {
+			cout << "Would you like to search by name(n) or by id(i)? ";
+			cin >> choice;
+		} while (choice != 'n' && choice != 'i');
+		switch (choice) {
+		case 'n':
+			cout << "Select student: ";
+			cin.ignore();
+			cin.getline(search_name, 40);
+			if (searchstd_by_name(students, n, pos1, search_name)) {
+				for (int i = pos1; i < n; i++) {
+					students[i] = students[i + 1];
+				}
+				std_count--;
+			}
+			else
+				cerr << "Student not found" << endl;
+			break;
+		case 'i':
+			cout << "Select student: ";
+			cin >> search_id;
+			if (searchstd_by_id(students, n, pos1, search_id)) {
+				for (int i = pos2; i < n; i++) {
+					students[i] = students[i + 1];
+				}
+				std_count--;
+				cout << "\nSuccessfully removed\n";
+			}
+			else
+				cerr << "Student not found" << endl;
+			break;
+		}
+	}
+}
+
+void update_std_info(student* students, int n) {
+	int search_id, pos1 = -1, pos2 = -1, action;
+	char search_name[40];
+	char choice;
+	do {
+		cout << "Would you like to search by name(n) or by id(i)? ";
+		cin >> choice;
+	} while (choice != 'n' && choice != 'i');
+	switch (choice) {
+	case 'n':
+		cout << "Select student: ";
+		cin.ignore();
+		cin.getline(search_name, 40);
+		if (searchstd_by_name(students, n, pos1, search_name)) {
+			cout << "\n1) All attributes" << endl;
+			cout << "2) Name" << endl;
+			cout << "3) ID" << endl;
+			cout << "4) Gender" << endl;
+			cout << "5) Date of birth" << endl;
+			cout << "6) Major" << endl;
+			cout << "7) GPA" << endl;
+			cout << "8) Starting semester" << endl;
+			cout << "9) Credits completed" << endl;
+			do {
+				cout << "-->"; cin >> action;
+			} while (action < 1 || action >9);
+			switch (action) {
+			case 1:
+				cin >> students[pos1];
+				break;
+			case 2:
+				cout << "Full name: "; cin.ignore(); cin.getline(students[pos1].name, 40);
+				break;
+			case 3:
+				do {
+					cout << "Student ID: ";
+					cin >> students[pos1].id;
+				} while (students[pos1].id <= 0);
+				break;
+			case 4:
+				do {
+					cout << "Gender(M/F): ";
+					cin >> students[pos1].gender;
+				} while (students[pos1].gender != 'M' && students[pos1].gender != 'F');
+				break;
+			case 5:
+				cin >> students[pos1].birth;
+				break;
+			case 6:
+				cout << "\nAvailable majors (CCE-MCE-CME-BFE-BME)" << endl;
+				cout << "Major: "; cin.ignore(); cin.getline(students[pos1].major, 20);
+				while (strcmp(students[pos1].major, "CCE") != 0 && strcmp(students[pos1].major, "BME") != 0 &&
+					strcmp(students[pos1].major, "BFE") != 0 && strcmp(students[pos1].major, "CME") != 0
+					&& strcmp(students[pos1].major, "MCE") != 0) {
+					cout << "Major: "; cin.getline(students[pos1].major, 20);
+				}
+				break;
+			case 7:
+				do {
+					cout << "GPA: ";
+					cin >> students[pos1].gpa;
+				} while (students[pos1].gpa < 0.00 || students[pos1].gpa> 4.00);
+				break;
+			case 8:
+				do {
+					cout << "Starting semester: ";
+					cin >> students[pos1].started.season >> students[pos1].started.year;
+				} while (students[pos1].started.year < 2000 || students[pos1].started.year > 2023);
+				break;
+			case 9:
+				do {
+					cout << "Credits completed: ";
+					cin >> students[pos1].credits;
+				} while (students[pos1].credits < 0);
+				break;
+			}
+		}
+		else
+			cerr << "Student not found" << endl;
+		break;
+	case 'i':
+		cout << "Select student: ";
+		cin >> search_id;
+		if (searchstd_by_id(students, n, pos2, search_id)) {
+			cout << "1) All attributes" << endl;
+			cout << "2) Name" << endl;
+			cout << "3) ID" << endl;
+			cout << "4) Gender" << endl;
+			cout << "5) Date of birth" << endl;
+			cout << "6) Major" << endl;
+			cout << "7) GPA" << endl;
+			cout << "8) Starting semester" << endl;
+			cout << "9) Credits completed" << endl;
+			do {
+				cout << "-->"; cin >> action;
+			} while (action < 1 || action >9);
+			switch (action) {
+			case 1:
+				cin >> students[pos2];
+				break;
+			case 2:
+				cout << "Full name: "; cin.ignore(); cin.getline(students[pos2].name, 40);
+				break;
+			case 3:
+				do {
+					cout << "Student ID: ";
+					cin >> students[pos2].id;
+				} while (students[pos2].id <= 0);
+				break;
+			case 4:
+				do {
+					cout << "Gender(M/F): ";
+					cin >> students[pos2].gender;
+				} while (students[pos2].gender != 'M' && students[pos2].gender != 'F');
+				break;
+			case 5:
+				cin >> students[pos2].birth;
+				break;
+			case 6:
+				cout << "\nMajor: "; cin.ignore(); cin.getline(students[pos2].major, 20);
+				while (strcmp(students[pos2].major, "CCE") != 0 && strcmp(students[pos2].major, "BME") != 0 &&
+					strcmp(students[pos2].major, "BFE") != 0 && strcmp(students[pos2].major, "CME") != 0
+					&& strcmp(students[pos2].major, "MCE") != 0) {
+					cout << "Major: "; cin.getline(students[pos2].major, 20);
+				}
+				break;
+			case 7:
+				do {
+					cout << "GPA: ";
+					cin >> students[pos2].gpa;
+				} while (students[pos2].gpa < 0.00 || students[pos2].gpa> 4.00);
+				break;
+			case 8:
+				do {
+					cout << "Starting semester: ";
+					cin >> students[pos2].started.season >> students[pos2].started.year;
+				} while (students[pos2].started.year < 2000 || students[pos2].started.year > 2023);
+				break;
+			case 9:
+				do {
+					cout << "Credits completed: ";
+					cin >> students[pos2].credits;
+				} while (students[pos2].credits < 0);
+				break;
+			}
+		}
+		else
+			cerr << "Student not found" << endl;
+		break;
+	}
+}
+
+int student_file_counter(ifstream& file){
+	file.seekg(0, ios::end);
+	return (file.tellg() / sizeof(student));
+}
+
+void input_std_binary(student* students, int n) {
+	ofstream file;
+	file.open("Students.dat", ios::binary | ios::app);
+	for (int i = 0; i < n; i++) {
+		file.write((char*)(&(students[i])), sizeof(student));
+	}
+	file.close();
+}
+
+void display_std_binary(student* students) {
+	double avg;
+	student s, in;
+	int counter;
+	ifstream file;
+	file.open("Students.dat", ios::binary);
+	counter = student_file_counter(file);
+	if (counter == 0 || file.fail())
+		cout << "\a\nNo students in this file\n\n";
+	else {
+		file.seekg(0);
+		for (int i = 0; i < counter; i++) {
+			file.read((char*)(&(in)), sizeof(student));
+			cout << in << endl;
+			s += in;
+		}
+		file.close();
+		avg = s.gpa / counter;
+		cout << "The average GPA is: " << avg << "\n\n";
+	}
+}
+
+void input_std_binary_major(student* students, int n, char std_major[]) {
+	ofstream file;
+	char file_name[40];
+	strcpy_s(file_name, std_major);
+	strcat_s(file_name, "_File.dat");
+	file.open(file_name, ios::binary | ios::app);
+	for (int i = 0; i < n; i++) {
+		if (strcmp(students[i].major, std_major) == 0) {
+			file.write((char*)(&(students[i])), sizeof(student));
+		}
+	}
+	file.close();
+}
+
+void display_std_binary_major(student* students, char std_major[]) {
+	double avg;
+	student s, in;
+	int counter;
+	ifstream file;
+	char file_name[40];
+	strcpy_s(file_name, std_major);
+	strcat_s(file_name, "_File.dat");
+	file.open(file_name, ios::binary);
+	counter = student_file_counter(file);
+	if (counter == 0 || file.fail()) 
+		cout << "\aNo students in this file\n\n";
+	else {
+		file.seekg(0);
+		for (int i = 0; i < counter; i++) {
+			file.read((char*)(&(in)), sizeof(student));
+			cout << in << endl;
+			s += in;
+		}
+		file.close();
+		avg = s.gpa / counter;
+		cout << "The average GPA for this major is: " << avg << endl;
+	}
+}
+
+void remove_std_binary(student* students) {
+	char search[40], file_name[40];
+	int count1, count2, pos1 = -1, pos2 = -1;
+	cout << "\nRemove student: ";
+	cin.ignore();
+	cin.getline(search, 40);
+	ifstream stds, majors;
+	ofstream new_stds, new_majors;
+	stds.open("Students.dat", ios::binary);
+	new_stds.open("New_Students.dat", ios::binary);
+	count1 = student_file_counter(stds);
+	if (count1 == 0 || stds.fail())
+		cout << "\nNo students in this file\n\n";
+	else {
+		stds.seekg(0);
+		for (int i = 0; i < count1; i++) {
+			stds.read((char*)(&(students[0])), sizeof(student));
+			if (strcmp(search, students[0].get_name()) == 0) {
+				cout << "\nStudent found\n";
+				pos1 = i;
+				strcpy_s(file_name, students[0].get_major());
+				break;
+			}
+		}
+		strcat_s(file_name, "_File.dat");
+		if (pos1 == -1) {
+			stds.close();
+			new_stds.close();
+			majors.close();
+			new_majors.close();
+			remove("Sub_Majors.dat");
+			remove("New_Students.dat");
+			cout << "\nStudent not found\n\n";
+		}
+		if (pos1 != -1) {
+			majors.open(file_name, ios::binary);
+			new_majors.open("Sub_Majors.dat", ios::binary | ios::trunc);
+			count2 = student_file_counter(majors);
+			majors.seekg(0);
+			for (int j = 0; j < count2; j++) {
+				majors.read((char*)(&(students[0])), sizeof(student));
+				if (strcmp(search, students[0].get_name()) == 0) {
+					pos2 = j;
+					break;
+				}
+			}
+			stds.seekg(0);
+			for (int i = 0; i < count1; i++) {
+				if (i == pos1)
+					stds.seekg((i + 1) * sizeof(student));
+				else {
+					stds.read((char*)(&(students[0])), sizeof(student));
+					new_stds.write((char*)(&(students[0])), sizeof(student));
+				}
+			}
+			if (pos2 != -1) {
+				majors.seekg(0);
+				for (int i = 0; i < count2; i++) {
+					if (i == pos2)
+						majors.seekg((i + 1) * sizeof(student));
+					else {
+						majors.read((char*)(&(students[0])), sizeof(student));
+						new_majors.write((char*)(&(students[0])), sizeof(student));
+					}
+				}
+			}
+			stds.close();
+			new_stds.close();
+			majors.close();
+			new_majors.close();
+			remove("Students.dat");
+			remove(file_name);
+			rename("New_Students.dat", "Students.dat");
+			rename("Sub_Majors.dat", file_name);
+			cout << "\nSuccessfully removed\n";
+		}
+	}
+}
+
+void std_menu() {
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xA);
+	cout << "Student management: " << endl;
+	cout << "-------------------\n";
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xF);
+	cout << "1) Input student information" << endl;
+	cout << "2) Display student information" << endl;
+	cout << "3) Sort students by credits completed" << endl;
+	cout << "4) Sort students by semester started" << endl;
+	cout << "5) Group students by major" << endl;
+	cout << "6) Group students by semester started" << endl;
+	cout << "7) Search for student by name" << endl;
+	cout << "8) Search for student by ID" << endl;
+	cout << "+) Add student" << endl;
+	cout << "-) Remove student" << endl;
+	cout << "*) Update student information" << endl;
+	cout << "f) File options" << endl;
+	cout << "B) Go back" << endl;
+}
+
+void std_file_menu() {
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xE);
+	cout << "File options: " << endl;
+	cout << "-------------\n";
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xC0);
+	cout << "Warning!! All information entered during the code's runtime are saved upon exit\n";
+	cout << "End code execution to save all the info into the binary file for display\n";
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xF);
+	cout << "1) Display from binary file" << endl;
+	cout << "2) Remove student from binary file" << endl;
+	cout << "3) Dipslay students by major" << endl;
+	cout << "B) Go back" << endl;
+}
+
+bool search_std_binary(student* students, char name[]) {
+	int count;
+	ifstream stds;
+	stds.open("Students.dat", ios::binary);
+	if (stds.fail())
+		return false;
+	count = student_file_counter(stds);
+	stds.seekg(0);
+	for (int i = 0; i < count; i++) {
+		stds.read((char*)(&(students[0])), sizeof(student));
+		if (strcmp(name, students[0].get_name()) == 0) {
+			return true;
+			stds.close();
+		}
+	}
+	return false;
+	stds.close();
+}
+
+void check_major(char major[], int& CCE, int& MCE, int& CME, int& BFE, int& BME) {
+	if (strcmp(major, "CCE") == 0)
+		CCE = 1;
+	if (strcmp(major, "MCE") == 0)
+		MCE = 1;
+	if (strcmp(major, "BME") == 0)
+		BME = 1;
+	if (strcmp(major, "BFE") == 0)
+		BFE = 1;
+	if (strcmp(major, "CME") == 0)
+		CME = 1;
+}
+
+#endif _STUDENTS_H_
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+//teachers.h header file
+-------------------------
+
+#ifndef _TEACHER_H_
+#define _TEACHER_H_
+
+#include "member.h"
+
+class teacher : public member {
+	//function to search for a teacher (by name) from a binary file
+	friend bool search_tch_binary(teacher*, char[]);
+
+	//function to update a teacher's deisred information
+	friend void update_tch_info(teacher*, int);
+
+	//recursive function to search for a teacher by ID
+	friend bool searchtch_by_id(teacher*, int, int&, int);
+
+	//recursive function to search for a teacher by name
+	friend bool searchtch_by_name(teacher*, int, int&, char[]);
+
+	//function to group teachers according to their specialization
+	friend void group_by_specialization(teacher*, int);
+
+	//function to sort teachers by age
+	friend void sort_by_age_tch(teacher*, int);
+
+	//function to sort teachers by semester started
+	friend void sort_by_semester(teacher*, int);
+
+	//overloading input operator for teacher objects
+	friend istream& operator>>(istream&, teacher&);
+
+	//overloading output operator for teacher objects
+	friend ostream& operator<<(ostream&, teacher&);
+private:
+	double salary;
+	char specialization[20];
+public:
+	//teacher class constructor
+	teacher() :member() {
+		salary = 0;
+		strcpy_s(specialization, "N/A");
+	}
+};
+
+void display_tch_binary(teacher*);
+
+//display teacher file options menu
+void tch_file_menu();
+
+void tch_menu();
+
+//function to input teachers into the binary file
+void input_tch_binary(teacher*, int);
+
+//function to count number of teachers in a binary file
+int teacher_file_counter(ifstream&);
+
+//function to remove teacher from a binary file
+void remove_tch_binary(teacher*);
+
+void add_tch(teacher*, int, int&);
+void swap_tchs(teacher*, teacher*);
+void remove_tch(teacher*, int, int&);
+void display_all_tchs(teacher*, int);
+void input_all_tchs(teacher*, int);
+
+istream& operator>>(istream& in, teacher& tch) {
+	cout << "\nTeacher information : \n";
+	cout << "--------------------\n\n";
+	cout << "Full name: "; in.ignore(); in.getline(tch.name, 40);
+	do {
+		cout << "Teacher ID: ";
+		in >> tch.id;
+	} while (tch.id <= 0);
+	do {
+		cout << "Gender(M/F): ";
+		in >> tch.gender;
+	} while (tch.gender != 'M' && tch.gender != 'F');
+	cout << "Date of birth: " << endl;
+	in >> tch.birth;
+	cout << "\nSpecialization: "; in.ignore(); in.getline(tch.specialization, 20);
+	do {
+		cout << "Starting semester: ";
+		in >> tch.started.season >> tch.started.year;
+	} while (tch.started.year < 1990 || tch.started.year > 2023);
+	do {
+		cout << "Salary($/month): ";
+		in >> tch.salary;
+	} while (tch.salary < 0);
+	return in;
+}
+
+ostream& operator<<(ostream& out, teacher& tch) {
+	out << tch.name << "-" << tch.id << " (" << tch.specialization << ")\n";
+	out << "Gender: " << tch.gender << endl;
+	out << "Date of birth: " << tch.birth << endl;
+	out << "Starting semester: " << tch.started.season << " " << tch.started.year << endl;
+	out << "Salary: " << setprecision(2) << fixed << showpoint << tch.salary << " $/month" << endl;
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x4);
+	out << "----------------------------------------------------------\n";
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xF);
+	return out;
+}
+
+void display_all_tchs(teacher* teachers, int n) {
+	cout << "Displaying all teachers...\n";
+	cout << "--------------------------\n\n";
+	for (int i = 0; i < n; i++) {
+		cout << teachers[i] << "\n";
+	}
+	cout << "\n";
+}
+
+void input_all_tchs(teacher* teachers, int n) {
+	cout << "Input all teachers...\n";
+	cout << "--------------------------\n";
+	for (int i = 0; i < n; i++) {
+		cin >> teachers[i];
+	}
+	cout << "\n";
+}
+
+void swap_tchs(teacher* tch1, teacher* tch2) {
+	teacher temp;
+	temp = *tch1;
+	*tch1 = *tch2;
+	*tch2 = temp;
+}
+
+void sort_by_semester(teacher* teachers, int n) {
+	char choice;
+	do {
+		cout << "Do you want to sort in ascending(a) or descending(d) order? ";
+		cin >> choice;
+	} while (choice != 'a' && choice != 'd');
+	switch (choice) {
+	case 'a':
+		for (int i = 0; i < n - 1; i++) {
+			for (int j = 0; j < n - 1; j++) {
+				if (semester_comp(&(teachers[j].started), &(teachers[j + 1].started)) == -1)
+					swap_tchs(&(teachers[j]), &(teachers[j + 1]));
+			}
+		}
+		break;
+	case 'd':
+		for (int i = 0; i < n - 1; i++) {
+			for (int j = 0; j < n - 1; j++) {
+				if (semester_comp(&(teachers[j].started), &(teachers[j + 1].started)) == 1)
+					swap_tchs(&(teachers[j]), &(teachers[j + 1]));
+			}
+		}
+		break;
+	}
+}
+
+void sort_by_age_tch(teacher* teachers, int n) {
+	char choice;
+	do {
+		cout << "Do you want to sort in ascending(a) or descending(d) order? ";
+		cin >> choice;
+	} while (choice != 'a' && choice != 'd');
+	switch (choice) {
+	case 'a':
+		for (int i = 0; i < n - 1; i++) {
+			for (int j = 0; j < n - 1; j++) {
+				if (date_comp(&(teachers[j].birth), &(teachers[j + 1].birth)) == -1)
+					swap_tchs(&(teachers[j]), &(teachers[j + 1]));
+			}
+		}
+		break;
+	case 'd':
+		for (int i = 0; i < n - 1; i++) {
+			for (int j = 0; j < n - 1; j++) {
+				if (date_comp(&(teachers[j].birth), &(teachers[j + 1].birth)) == 1)
+					swap_tchs(&(teachers[j]), &(teachers[j + 1]));
+			}
+		}
+		break;
+	}
+}
+
+void group_by_specialization(teacher* teachers, int n) {
+	bool check = false;
+	char search_spec[20];
+	cout << "Select specialization: ";
+	cin >> search_spec;
+	for (int i = 0; i < n; i++) {
+		if (strcmp(search_spec, teachers[i].specialization) == 0) {
+			cout << teachers[i].name << "-" << teachers[i].id << endl;
+			check = true;
+		}
+	}
+	if (!check)
+		cerr << "No teachers found" << endl;
+	else
+		cerr << "Successfull" << endl;
+}
+
+void add_tch(teacher* teachers, int n, int& tch_count) {
+	if (n == 500) {
+		cout << "Can no longer add teachers\n\n";
+	}
+	else {
+		tch_count++;
+		cin >> teachers[n];
+	}
+}
+
+bool searchtch_by_id(teacher* teachers, int n, int&pos, int search_id) {
+	if (n == 0)
+		return false;
+	if (search_id == teachers[n - 1].id) {
+		pos = n - 1;
+		return true;
+	}
+	else
+		return searchtch_by_id(teachers, n - 1, pos, search_id);
+}
+
+bool searchtch_by_name(teacher* teachers, int n, int& pos, char search_name[]) {
+	if (n == 0)
+		return false;
+	if (strcmp(search_name, teachers[n - 1].name) == 0) {
+		pos = n - 1;
+		return true;
+	}
+	else
+		return searchtch_by_name(teachers, n - 1, pos, search_name);
+}
+
+void remove_tch(teacher* teachers, int n, int& tch_count) {
+	if (n == 0) {
+		cout << "Can no longer remove teachers\n\n";
+	}
+	else {
+		int search_id, pos1 = -1, pos2 = -1;
+		char search_name[40];
+		char choice;
+		do {
+			cout << "Would you like to search by name(n) or by id(i)? ";
+			cin >> choice;
+		} while (choice != 'n' && choice != 'i');
+		switch (choice) {
+		case 'n':
+			cout << "Select teacher: ";
+			cin.ignore();
+			cin.getline(search_name, 40);
+			if (searchtch_by_name(teachers, n, pos1, search_name)) {
+				for (int i = pos1; i < n; i++) {
+					teachers[i] = teachers[i + 1];
+				}
+				tch_count--;
+				cout << "\nSuccessfully removed\n";
+			}
+			else
+				cerr << "Teacher not found" << endl;
+			break;
+		case 'i':
+			cout << "Select teacher: ";
+			cin >> search_id;
+			if (searchtch_by_id(teachers, n, pos1, search_id)) {
+				for (int i = pos2; i < n; i++) {
+					teachers[i] = teachers[i + 1];
+				}
+				tch_count--;
+			}
+			else
+				cerr << "Teacher not found" << endl;
+			break;
+		}
+	}
+}
+
+void update_tch_info(teacher* teachers, int n) {
+	int search_id, pos1 = -1, pos2 = -1, action;
+	char search_name[40];
+	char choice;
+	do {
+		cout << "Would you like to search by name(n) or by id(i)? ";
+		cin >> choice;
+	} while (choice != 'n' && choice != 'i');
+	switch (choice) {
+	case 'n':
+		cout << "Select student: ";
+		cin.ignore();
+		cin.getline(search_name, 40);
+		if (searchtch_by_name(teachers, n, pos1, search_name)) {
+			cout << "1) All attributes" << endl;
+			cout << "2) Name" << endl;
+			cout << "3) ID" << endl;
+			cout << "4) Gender" << endl;
+			cout << "5) Date of birth" << endl;
+			cout << "6) Specialization" << endl;
+			cout << "7) Salary" << endl;
+			cout << "8) Starting semester" << endl;
+			do {
+				cout << "-->"; cin >> action;
+			} while (action < 1 || action >8);
+			switch (action) {
+			case 1:
+				cin >> teachers[pos1];
+				break;
+			case 2:
+				cout << "Full name: "; cin.ignore(); cin.getline(teachers[pos1].name, 40);
+				break;
+			case 3:
+				do {
+					cout << "Teacher ID: ";
+					cin >> teachers[pos1].id;
+				} while (teachers[pos1].id <= 0);
+				break;
+			case 4:
+				do {
+					cout << "Gender(M/F): ";
+					cin >> teachers[pos1].gender;
+				} while (teachers[pos1].gender != 'M' && teachers[pos1].gender != 'F');
+				break;
+			case 5:
+				cin >> teachers[pos1].birth;
+				break;
+			case 6:
+				cout << "\nSpecialization: "; cin.ignore(); cin.getline(teachers[pos1].specialization, 20);
+				break;
+			case 7:
+				do {
+					cout << "Salary($/month): ";
+					cin >> teachers[pos1].salary;
+				} while (teachers[pos1].salary < 0);
+				break;
+			case 8:
+				do {
+					cout << "Starting semester: ";
+					cin >> teachers[pos1].started.season >> teachers[pos1].started.year;
+				} while (teachers[pos1].started.year < 2000 || teachers[pos1].started.year > 2023);
+				break;
+			}
+		}
+		else
+			cerr << "Teacher not found" << endl;
+		break;
+	case 'i':
+		cout << "Select student: ";
+		cin >> search_id;
+		if (searchtch_by_id(teachers, n, pos2, search_id)) {
+			cout << "1) All attributes" << endl;
+			cout << "2) Name" << endl;
+			cout << "3) ID" << endl;
+			cout << "4) Gender" << endl;
+			cout << "5) Date of birth" << endl;
+			cout << "6) Specialization" << endl;
+			cout << "7) Salary" << endl;
+			cout << "8) Starting semester" << endl;
+			do {
+				cout << "-->"; cin >> action;
+			} while (action < 1 || action >8);
+			switch (action) {
+			case 1:
+				cin >> teachers[pos2];
+				break;
+			case 2:
+				cout << "Full name: "; cin.ignore(); cin.getline(teachers[pos2].name, 40);
+				break;
+			case 3:
+				do {
+					cout << "Teacher ID: ";
+					cin >> teachers[pos2].id;
+				} while (teachers[pos2].id <= 0);
+				break;
+			case 4:
+				do {
+					cout << "Gender(M/F): ";
+					cin >> teachers[pos2].gender;
+				} while (teachers[pos2].gender != 'M' && teachers[pos2].gender != 'F');
+				break;
+			case 5:
+				cin >> teachers[pos2].birth;
+				break;
+			case 6:
+				cout << "\nSpecialization: "; cin.ignore(); cin.getline(teachers[pos2].specialization, 20);
+				break;
+			case 7:
+				do {
+					cout << "Salary($/month): ";
+					cin >> teachers[pos2].salary;
+				} while (teachers[pos2].salary < 0);
+				break;
+			case 8:
+				do {
+					cout << "Starting semester: ";
+					cin >> teachers[pos2].started.season >> teachers[pos2].started.year;
+				} while (teachers[pos2].started.year < 2000 || teachers[pos2].started.year > 2023);
+				break;
+			}
+		}
+		else
+			cerr << "Teacher not found" << endl;
+		break;
+	}
+}
+
+int teacher_file_counter(ifstream& file) {
+	file.seekg(0, ios::end);
+	return (file.tellg() / sizeof(teacher));
+}
+
+void input_tch_binary(teacher* teachers, int n) {
+	ofstream file;
+	file.open("Teachers.dat", ios::binary | ios::app);
+	for (int i = 0; i < n; i++) {
+		file.write((char*)(&(teachers[i])), sizeof(teacher));
+	}
+	file.close();
+}
+
+void display_tch_binary(teacher* teachers) {
+	int counter;
+	ifstream file;
+	teacher tch;
+	file.open("Teachers.dat", ios::binary);
+	counter = teacher_file_counter(file);
+	if (counter == 0 || file.fail()) {
+		cout << "No teachers in this file\n\n";
+	}
+	else {
+		file.seekg(0);
+		for (int i = 0; i < counter; i++) {
+			file.read((char*)(&(tch)), sizeof(teacher));
+			cout << tch << endl;
+		}
+		file.close();
+	}
+}
+
+void remove_tch_binary(teacher* teachers) {
+	bool test;
+	int pos = -1, count;
+	char search_name[40];
+	ifstream Teachers;
+	ofstream sub_teachers;
+	Teachers.open("Teachers.dat", ios::binary);
+	sub_teachers.open("sub_teachers.dat", ios::binary);
+	if (Teachers.fail())
+		cerr << "\nNo teachers in this file\n\n";
+	else {
+		count = teacher_file_counter(Teachers);
+		Teachers.seekg(0);
+		cout << "\nTeacher name: "; cin.ignore(); cin.getline(search_name, 40);
+		for (int j = 0; j < count; j++) {
+			Teachers.read((char*)(&(teachers[0])), sizeof(teacher));
+			if (strcmp(teachers[0].get_name(), search_name) == 0) {
+				pos = j;
+				break;
+			}
+			else
+				pos = -1;
+		}
+		switch (pos) {
+		case -1:
+			test = false; break;
+		default:
+			test = true; break;
+		}
+		if (!test) {
+			cout << "\nTeacher not found\n\n";
+			Teachers.close();
+			sub_teachers.close();
+			remove("sub_teachers.dat");
+		}
+		if (test) {
+			Teachers.seekg(0);
+			for (int i = 0; i < count; i++) {
+				if (i == pos)
+					Teachers.seekg((i + 1) * sizeof(teacher));
+				else {
+					Teachers.read((char*)(&(teachers[0])), sizeof(teacher));
+					sub_teachers.write((char*)(&(teachers[0])), sizeof(teacher));
+				}
+			}
+			cout << "\nSuccessfully removed\n\n";
+			Teachers.close();
+			sub_teachers.close();
+			remove("Teachers.dat");
+			rename("sub_teachers.dat", "Teachers.dat");
+		}
+	}
+}
+
+void tch_menu() {
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xC);
+	cout << "Teacher management: " << endl;
+	cout << "-------------------\n";
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xF);
+	cout << "1) Input teacher information" << endl;
+	cout << "2) Display teacher information" << endl;
+	cout << "3) Sort teachers by age" << endl;
+	cout << "4) Sort teachers by semester started" << endl;
+	cout << "5) Group teachers by specialization" << endl;
+	cout << "6) Search for teacher by name" << endl;
+	cout << "7) Search for teacher by ID" << endl;
+	cout << "+) Add teacher" << endl;
+	cout << "-) Remove teacher" << endl;
+	cout << "*) Update teacher information" << endl;
+	cout << "f) File options" << endl;
+	cout << "B) Go back" << endl;
+}
+
+void tch_file_menu() {
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xE);
+	cout << "File options: " << endl;
+	cout << "-------------\n";
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xC0);
+	cout << "Warning!! All information entered during the code's runtime are saved upon exit\n";
+	cout << "End code execution to save all the info into the binary file for display\n";
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xF);
+	cout << "1) Display from binary file" << endl;
+	cout << "2) Remove student from binary file" << endl;
+	cout << "B) Go back" << endl;
+}
+
+bool search_tch_binary(teacher* teachers, char name[]) {
+	int count;
+	ifstream tchs;
+	tchs.open("Teachers.dat", ios::binary);
+	count = teacher_file_counter(tchs);
+	tchs.seekg(0);
+	if (tchs.fail())
+		return false;
+	for (int i = 0; i < count; i++) {
+		tchs.read((char*)(&(teachers[0])), sizeof(teacher));
+		if (strcmp(name, teachers[0].get_name()) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+#endif _TEACHER_H_
+-----------------------------------------------------------------------------------------------------------------------------------------------
+
+//Main function (Main.cpp file)
+-------------------------------
+
+//including header files
+#include "schedule.h"
+#include "students.h"
+#include "teachers.h"
+
+int main() {
+	//sets system color to white
+	system("color 7");
+	char search_name[40], binary_search[40];
+	int std_add = 0, tch_add = 0, c1 = 0, c2 = 0;
+	int std_num = 0, tch_num = 0, search_id, sub = -1, pos1 = -1, n;
+	student* students;
+	teacher* teachers;
+	//array of teachers containing a maximum of 500 teachers
+	teachers = new teacher[500];
+	//array of students containing a maximum of 1000 students
+	students = new student[1000];
+	char main_action, std_action, tch_action, sch_action, file_action;
+	int CCE = 0, MCE = 0, BFE = 0, BME = 0, CME = 0;
+	char yon1, action, choice;
+	//schedule object
+	schedule s;
+	//changes color
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x9);
+	cout << "Manage your university\n";
+	cout << "----------------------\n\n";
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xF);
+	main_menu();
+	cout << "\n-->";
+	cin >> main_action;
+	//loops main menu
+	while (main_action != 'T') {
+		//switch operation for main menu
+		switch (main_action) {
+		case'1':
+			system("cls");
+			std_menu();
+			cout << "\n-->";
+			cin >> std_action;
+			//loops student menu
+			while (std_action != 'B') {
+				//switch operation for student menu
+				switch (std_action) {
+				case '1':
+					if (c1 >= 1) {
+						delete[]students;
+						students = new student[1000];
+						cout << "\a\nAttention! You are about to override previously saved info...\n";
+						do {
+							cout << "Do you still wish to proceed?(y/n) ";
+							cin >> yon1;
+						} while (yon1 != 'y' && yon1 != 'n');
+						switch (yon1) {
+						case 'y':
+							cout << "\nEnter number of students to register: ";
+							cin >> std_num;
+							while (cin.fail() || std_num < 1 || std_num > 1000) {
+								cin.clear(); cin.ignore(INT_MAX, '\n');
+								cout << "\nEnter number of students to register: ";
+								cin >> std_num;
+							}
+							cout << "\n";
+							input_all_stds(students, std_num + std_add);
+							c1++;
+							break;
+						case 'n':
+							break;
+						}
+					}
+					else {
+						cout << "\nEnter number of students to register: ";
+						cin >> std_num;
+						while (cin.fail() || std_num < 1 || std_num > 1000) {
+							cin.clear(); cin.ignore(INT_MAX, '\n');
+							cout << "\nEnter number of students to register: ";
+							cin >> std_num;
+						}
+						cout << "\n";
+						input_all_stds(students, std_num + std_add);
+						c1++;
+					}
+					system("pause");
+					system("cls");
+					break;
+				case '2':
+					cout << "\n";
+					display_all_stds(students, std_num + std_add);
+					system("pause");
+					system("cls");
+					break;
+				case '3':
+					cout << "\n";
+					sort_by_credits(students, std_num + std_add);
+					system("pause");
+					system("cls");
+					break;
+				case'4':
+					cout << "\n";
+					sort_by_semester(students, std_num + std_add);
+					system("pause");
+					system("cls");
+					break;
+				case '5':
+					cout << "\n";
+					group_by_major(students, std_num + std_add);
+					system("pause");
+					system("cls");
+					break;
+				case '6':
+					cout << "\n";
+					group_by_year(students, std_num + std_add);
+					system("pause");
+					system("cls");
+					break;
+				case '7':
+					pos1 = -1;
+					cout << "\n";
+					cout << "\nSearch for student: ";
+					cin.ignore();
+					cin.getline(search_name, 40);
+					if (searchstd_by_name(students, std_num + std_add, pos1, search_name)) {
+						cout << "\nStudent found\n\n";
+						cout << students[pos1] << endl;
+					}
+					else
+						cout << "\nStudent not found\n\n";
+					system("pause");
+					system("cls");
+					break;
+				case '8':
+					pos1 = -1;
+					cout << "\nSearch for student: ";
+					cin >> search_id;
+					if (searchstd_by_id(students, std_num + std_add, pos1, search_id)) {
+						cout << "\nStudent found\n\n";
+						cout << students[pos1] << endl;
+					}
+					else
+						cout << "\nStudent not found\n\n";
+					system("pause");
+					system("cls");
+					break;
+				case '+':
+					cout << "\n";
+					add_std(students, std_num + std_add, std_add);
+					system("pause");
+					system("cls");
+					break;
+				case '-':
+					cout << "\n";
+					remove_std(students, std_num + std_add, std_add);
+					system("pause");
+					system("cls");
+					break;
+				case '*':
+					cout << "\n";
+					update_std_info(students, std_num + std_add);
+					system("pause");
+					system("cls");
+					break;
+				case 'f':
+					cout << "\n";
+					system("cls");
+					std_file_menu();
+					cout << "\n-->";
+					cin >> file_action;
+					//loops student file menu 
+					while (file_action != 'B') {
+						//switch operation for student file menu
+						switch (file_action) {
+						case '1':
+							display_std_binary(students);
+							system("pause");
+							system("cls");
+							break;
+						case '2':
+							remove_std_binary(students);
+							system("pause");
+							system("cls");
+							break;
+						case '3':
+							char major_search[20];
+							cout << "Search for major: ";
+							cin.ignore();
+							cin.getline(major_search, 20);
+							cout << "\n";
+							display_std_binary_major(students, major_search);
+							system("pause");
+							system("cls");
+							break;
+						case 'B':
+							break;
+						}
+						system("cls");
+						std_file_menu();
+						cout << "\n-->";
+						cin >> file_action;
+					}
+					break;
+				case 'B':
+					break;
+				}
+				system("cls");
+				std_menu();
+				cout << "\n-->";
+				cin >> std_action;
+			}
+			break;
+		case '2':
+			system("cls");
+			tch_menu();
+			cout << "\n-->";
+			cin >> tch_action;
+			//loops teacher menu
+			while (tch_action != 'B') {
+				//switch operation for teacher menu
+				switch (tch_action) {
+				case '1':
+					if (c2 >= 1) {
+						delete[]teachers;
+						teachers = new teacher[500];
+						cout << "\a\nAttention! You are about to override previously saved info...\n";
+						do {
+							cout << "Do you still wish to proceed?(y/n) ";
+							cin >> yon1;
+						} while (yon1 != 'y' && yon1 != 'n');
+						switch (yon1) {
+						case 'y':
+							cout << "\nEnter number of teachers to register: ";
+							cin >> tch_num;
+							while (cin.fail() || tch_num < 1 || tch_num > 500) {
+								cin.clear(); cin.ignore(INT_MAX, '\n');
+								cout << "\nEnter number of teachers to register: ";
+								cin >> tch_num;
+							}
+							cout << "\n";
+							input_all_tchs(teachers, tch_num + tch_add);
+							c2++;
+							break;
+						case 'n':
+							break;
+						}
+					}
+					else {
+						cout << "\nEnter number of teachers to register: ";
+						cin >> tch_num;
+						while (cin.fail() || tch_num < 1 || tch_num > 500) {
+							cin.clear(); cin.ignore(INT_MAX, '\n');
+							cout << "\nEnter number of teachers to register: ";
+							cin >> tch_num;
+						}
+						cout << "\n";
+						input_all_tchs(teachers, tch_num + tch_add);
+						c2++;
+					}
+					system("pause");
+					system("cls");
+					break;
+				case '2':
+					cout << "\n";
+					display_all_tchs(teachers, tch_num + tch_add);
+					system("pause");
+					system("cls");
+					break;
+				case '3':
+					cout << "\n";
+					sort_by_age_tch(teachers, tch_num + tch_add);
+					system("pause");
+					system("cls");
+					break;
+				case'4':
+					cout << "\n";
+					sort_by_semester(teachers, tch_num + tch_add);
+					system("pause");
+					system("cls");
+					break;
+				case '5':
+					cout << "\n";
+					group_by_specialization(teachers, tch_num + tch_add);
+					system("pause");
+					system("cls");
+					break;
+				case '6':
+					pos1 = -1;
+					cout << "\n";
+					cout << "\nSearch for teacher: ";
+					cin.ignore();
+					cin.getline(search_name, 40);
+					if (searchtch_by_name(teachers, tch_num + tch_add, pos1, search_name)) {
+						cout << "\nTeacher found\n\n";
+						cout << teachers[pos1] << endl;
+					}
+					else
+						cout << "\nTeacher not found\n\n";
+					system("pause");
+					system("cls");
+					break;
+				case '7':
+					pos1 = -1;
+					cout << "\nSearch for teacher: ";
+					cin >> search_id;
+					if (searchtch_by_id(teachers, tch_num + tch_add, pos1, search_id)) {
+						cout << "\nTeacher found\n\n";
+						cout << teachers[pos1] << endl;
+					}
+					else
+						cout << "\nTeacher not found\n\n";
+					system("pause");
+					system("cls");
+					break;
+				case '+':
+					cout << "\n";
+					add_tch(teachers, tch_num + tch_add, tch_add);
+					system("pause");
+					system("cls");
+					break;
+				case '-':
+					cout << "\n";
+					remove_tch(teachers, tch_num + tch_add, tch_add);
+					system("pause");
+					system("cls");
+					break;
+				case '*':
+					cout << "\n";
+					update_tch_info(teachers, tch_num + tch_add);
+					system("pause");
+					system("cls");
+					break;
+				case 'f':
+					cout << "\n";
+					system("cls");
+					tch_file_menu();
+					cout << "\n-->";
+					cin >> file_action;
+					//loops teacher file menu
+					while (file_action != 'B') {
+						//switch operation for teacher file menu
+						switch (file_action) {
+						case '1':
+							display_tch_binary(teachers);
+							system("pause");
+							system("cls");
+							break;
+						case '2':
+							remove_tch_binary(teachers);
+							system("pause");
+							system("cls");
+							break;
+						case 'B':
+							break;
+						}
+						system("cls");
+						tch_file_menu();
+						cout << "\n-->";
+						cin >> file_action;
+					}
+				case 'B':
+					break;
+				}
+				system("cls");
+				tch_menu();
+				cout << "\n-->";
+				cin >> tch_action;
+			}
+			break;
+		case '3':
+			system("cls");
+			sch_menu();
+			cout << "\n-->";
+			cin >> sch_action;
+			//loops schedule menu
+			while (sch_action != 'B') {
+				//switch operation for schedule menu
+				switch (sch_action) {
+				case '1':
+					do {
+						cout << "\nSearch in binary file(b) or in recently added information(r)? ";
+						cin >> action;
+					} while (action != 'b' && action != 'r');
+					switch (action) {
+					case 'b':
+						cout << "\nStudent name: ";
+						cin.ignore();
+						cin.getline(binary_search, 40);
+						if (search_std_binary(students, binary_search)) {
+							cout << "\n";
+							cin >> s;
+							text_schedule(s, binary_search);
+						}
+						else
+							cout << "\nStudent not found\n\n";
+						break;
+					case 'r':
+						cout << "\nStudent name: ";
+						cin.ignore();
+						cin.getline(binary_search, 40);
+						if (searchstd_by_name(students, std_num + std_add, sub, binary_search)) {
+							cout << "\n";
+							cin >> s;
+							text_schedule(s, binary_search);
+						}
+						else
+							cout << "\nStudent not found\n\n";
+						break;
+					}
+					break;
+				case '2':
+					do {
+						cout << "\nSearch in binary file(b) or in recently added information(r)? ";
+						cin >> action;
+					} while (action != 'b' && action != 'r');
+					switch (action) {
+					case 'b':
+						cout << "\nTeacher name: ";
+						cin.ignore();
+						cin.getline(binary_search, 40);
+						if (search_tch_binary(teachers, binary_search)) {
+							cout << "\n";
+							cin >> s;
+							text_schedule(s, binary_search);
+						}
+						else
+							cout << "\nTeacher not found\n\n";
+						break;
+					case 'r':
+						cout << "\nTeacher name: ";
+						cin.ignore();
+						cin.getline(binary_search, 40);
+						if (searchtch_by_name(teachers, tch_num + tch_add, sub, binary_search)) {
+							cout << "\n";
+							cin >> s;
+							text_schedule(s, binary_search);
+						}
+						else
+							cout << "\nTeacher not found\n\n";
+						break;
+					}
+					break;
+				case '3':
+					cout << "\nStudent/Teacher name: ";
+					cin.ignore();
+					cin.getline(binary_search, 40);
+					if (read_from_file(binary_search)) {
+						cout << "\n\nOutput successfull\n" << endl;
+					}
+					else
+						cout << "\nNot found\n\n";
+					break;
+				}
+				system("pause");
+				system("cls");
+				sch_menu();
+				cout << "\n-->";
+				cin >> sch_action;
+			}
+			break;
+		case 'T':
+			break;
+		default:
+			cout << "\nInavlid search option\n\n";
+			break;
+		}
+		system("cls");
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x9);
+		cout << "Manage your university\n";
+		cout << "----------------------\n\n";
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0xF);
+		main_menu();
+		cout << "\n-->";
+		cin >> main_action;
+	}
+	for (int i = 0; i < std_num + std_add; i++) {
+		check_major(students[i].get_major(), CCE, MCE, CME, BFE, BME);
+	}
+	//number of majors chosen
+	n = CCE + MCE + BME + BFE + CME;
+	//inputs information into binary files
+	if ((std_num + std_add) > 0) {
+		input_std_binary(students, std_num + std_add);
+		for (int i = 0; i < n; i++) { //add major counter function
+			input_std_binary_major(students, std_num + std_add, students[i].get_major());
+		}
+	}
+	if ((tch_num + tch_add) > 0) {
+		input_tch_binary(teachers, tch_num + tch_add);
+	}
+	//deletes arrays
+	delete[]students;
+	delete[]teachers;
+	return 0;
+}
+-----------------------------------------------------------------------------------------------------------------------------------------------
+//End of program

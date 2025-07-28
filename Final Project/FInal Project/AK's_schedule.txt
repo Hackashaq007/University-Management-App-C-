@@ -1,0 +1,12 @@
+
+
+2 courses
+
+		Monday         Tuesday        Wednesday      Thursday       Friday
+		------------------------------------------------------------------
+
+08:00:00	tiz                           tiz
+
+08:00:00			ziz                           ziz
+
+
